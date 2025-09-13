@@ -1,8 +1,8 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
-from zoneinfo import ZoneInfo
+import datetime
 import os
+from zoneinfo import ZoneInfo
 
 st.set_page_config(page_title="초인류 프로젝트", layout="wide")
 
@@ -27,14 +27,9 @@ if "records" not in st.session_state:
     if os.path.exists(DATA_FILE):
         df = pd.read_csv(DATA_FILE)
         if not df.empty:
-            # 저장된 데이터 → datetime 변환 후 한국 표준시로 변환
             df["date"] = pd.to_datetime(
                 df["date"], format="%Y-%m-%d %H:%M:%S", errors="coerce"
             )
-            if df["date"].dt.tz is None:  # tz 정보가 없으면
-                df["date"] = df["date"].dt.tz_localize("Asia/Seoul")
-            else:  # tz가 있으면 한국 시간대로 변환
-                df["date"] = df["date"].dt.tz_convert("Asia/Seoul")
             st.session_state.records = df.to_dict("records")
         else:
             st.session_state.records = []
@@ -59,8 +54,15 @@ if "tasks" not in st.session_state:
 def save_records():
     if st.session_state.records:
         df = pd.DataFrame(st.session_state.records)
-        # 저장 전에 문자열로 변환 (KST 유지)
-        df["date"] = pd.to_datetime(df["date"]).dt.tz_convert("Asia/Seoul")
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+
+        # timezone 처리
+        if df["date"].dt.tz is None:
+            df["date"] = df["date"].dt.tz_localize("Asia/Seoul")
+        else:
+            df["date"] = df["date"].dt.tz_convert("Asia/Seoul")
+
+        # 저장은 문자열로
         df["date"] = df["date"].dt.strftime("%Y-%m-%d %H:%M:%S")
         df.to_csv(DATA_FILE, index=False)
 
@@ -115,7 +117,6 @@ with st.sidebar:
 
     if st.session_state.records:
         latest = st.session_state.records[-1]
-        # 한국 시간 기준 포맷
         date_str = pd.to_datetime(latest["date"]).strftime("%m월 %d일 %H:%M")
         st.markdown(
             f"<span style='font-size:16px; font-weight:bold'>📌 건강 상태 ({date_str} 기준)</span>",
@@ -167,7 +168,7 @@ with st.sidebar:
     st.markdown("---")
     st.subheader("📋 건강 기록 입력")
 
-    now = datetime.now(ZoneInfo("Asia/Seoul"))  # 한국 시간 기준
+    now = datetime.datetime.now(ZoneInfo("Asia/Seoul"))
     col1, col2 = st.columns(2)
     with col1:
         weight = st.number_input(
@@ -254,15 +255,9 @@ elif st.session_state.page == "graph":
     if df.empty:
         st.warning("아직 기록이 없습니다. 좌측에서 건강 기록을 입력하세요.")
     else:
-        # 불러온 데이터 → 한국 시간 변환
         df["date"] = pd.to_datetime(
             df["date"], format="%Y-%m-%d %H:%M:%S", errors="coerce"
         )
-        if df["date"].dt.tz is None:
-            df["date"] = df["date"].dt.tz_localize("Asia/Seoul")
-        else:
-            df["date"] = df["date"].dt.tz_convert("Asia/Seoul")
-
         df = df.sort_values("date").set_index("date")
 
         st.subheader("⚖️ 몸무게 변화")
