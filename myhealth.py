@@ -6,11 +6,15 @@ import os
 st.set_page_config(page_title="초인류 프로젝트", layout="wide")
 
 # -------------------------------
-# 데이터 파일 경로 (바탕화면/myhealth 폴더)
+# 데이터 파일 경로 설정 (로컬/클라우드 분기)
 # -------------------------------
 desktop = os.path.join(os.path.expanduser("~"), "OneDrive", "바탕 화면")
-data_dir = os.path.join(desktop, "myhealth")
-os.makedirs(data_dir, exist_ok=True)  # 폴더 없으면 생성
+if os.path.exists(desktop):  # 로컬 환경 (윈도우 바탕화면)
+    data_dir = os.path.join(desktop, "myhealth")
+else:  # 클라우드 환경 (Streamlit Cloud 등)
+    data_dir = "."
+
+os.makedirs(data_dir, exist_ok=True)
 DATA_FILE = os.path.join(data_dir, "health_records.csv")
 
 # -------------------------------
@@ -22,7 +26,9 @@ if "records" not in st.session_state:
     if os.path.exists(DATA_FILE):
         df = pd.read_csv(DATA_FILE)
         if not df.empty:
-            df["date"] = pd.to_datetime(df["date"], format="%Y-%m-%d %H:%M:%S", errors="coerce")
+            df["date"] = pd.to_datetime(
+                df["date"], format="%Y-%m-%d %H:%M:%S", errors="coerce"
+            )
             st.session_state.records = df.to_dict("records")
         else:
             st.session_state.records = []
@@ -38,7 +44,7 @@ if "tasks" not in st.session_state:
         "저녁루틴": ["저녁 7시 이전 식사", "20분 산책", "전자기기 줄이고 독서"],
         "공부집중": ["딥 워크 90분", "포모도로 25분 × 4", "복습 30분"],
         "체력": ["푸시업 30개", "스쿼트 30개", "조깅 20분"],
-        "식단": ["단백질 보충", "야채 섭취", "가공식품 줄이기"]
+        "식단": ["단백질 보충", "야채 섭취", "가공식품 줄이기"],
     }
 
 # -------------------------------
@@ -85,7 +91,7 @@ st.markdown(
     }
     </style>
     """,
-    unsafe_allow_html=True
+    unsafe_allow_html=True,
 )
 
 # -------------------------------
@@ -100,10 +106,9 @@ with st.sidebar:
     if st.session_state.records:
         latest = st.session_state.records[-1]
         date_str = pd.to_datetime(latest["date"]).strftime("%m월 %d일 %H:%M")
-        # 건강 상태 + 날짜를 한 줄로 표시
         st.markdown(
             f"<span style='font-size:16px; font-weight:bold'>📌 건강 상태 ({date_str} 기준)</span>",
-            unsafe_allow_html=True
+            unsafe_allow_html=True,
         )
 
         # 몸무게
@@ -128,7 +133,9 @@ with st.sidebar:
                 sleep_status = "<span style='color:green'>정상</span>"
             else:
                 sleep_status = "<span style='color:orange'>과다</span>"
-            st.markdown(f"- 😴 수면시간: {sleep} 시간 ({sleep_status})", unsafe_allow_html=True)
+            st.markdown(
+                f"- 😴 수면시간: {sleep} 시간 ({sleep_status})", unsafe_allow_html=True
+            )
 
         # BMI + 상태 판정
         height = 168
@@ -152,15 +159,19 @@ with st.sidebar:
     now = datetime.datetime.now()
     col1, col2 = st.columns(2)
     with col1:
-        weight = st.number_input("몸무게 (kg)", min_value=30.0, max_value=200.0,
-                                 step=0.1, value=73.0)
-        sleep = st.number_input("수면 시간 (h)", min_value=0.0, max_value=24.0,
-                                step=0.5, value=7.0)
+        weight = st.number_input(
+            "몸무게 (kg)", min_value=30.0, max_value=200.0, step=0.1, value=73.0
+        )
+        sleep = st.number_input(
+            "수면 시간 (h)", min_value=0.0, max_value=24.0, step=0.5, value=7.0
+        )
     with col2:
-        systolic = st.number_input("수축기 혈압 (mmHg)", min_value=80, max_value=200,
-                                   step=1, value=120)
-        diastolic = st.number_input("이완기 혈압 (mmHg)", min_value=50, max_value=130,
-                                    step=1, value=80)
+        systolic = st.number_input(
+            "수축기 혈압 (mmHg)", min_value=80, max_value=200, step=1, value=120
+        )
+        diastolic = st.number_input(
+            "이완기 혈압 (mmHg)", min_value=50, max_value=130, step=1, value=80
+        )
 
     if st.button("✅ 건강 기록 저장"):
         new_record = {
@@ -168,7 +179,7 @@ with st.sidebar:
             "weight": round(weight, 1),
             "systolic": systolic,
             "diastolic": diastolic,
-            "sleep": sleep
+            "sleep": sleep,
         }
         st.session_state.records.append(new_record)
         save_records()
@@ -206,8 +217,10 @@ if st.session_state.page == "main":
             col_in, col_add = st.columns([5, 1])
             with col_in:
                 new_task = st.text_input(
-                    f"{category} 새 항목", key=f"new_{category}",
-                    label_visibility="collapsed", placeholder="추가할 일 입력"
+                    f"{category} 새 항목",
+                    key=f"new_{category}",
+                    label_visibility="collapsed",
+                    placeholder="추가할 일 입력",
                 )
             with col_add:
                 if st.button("➕", key=f"add_{category}"):
@@ -230,7 +243,9 @@ elif st.session_state.page == "graph":
     if df.empty:
         st.warning("아직 기록이 없습니다. 좌측에서 건강 기록을 입력하세요.")
     else:
-        df["date"] = pd.to_datetime(df["date"], format="%Y-%m-%d %H:%M:%S", errors="coerce")
+        df["date"] = pd.to_datetime(
+            df["date"], format="%Y-%m-%d %H:%M:%S", errors="coerce"
+        )
         df = df.sort_values("date").set_index("date")
 
         st.subheader("⚖️ 몸무게 변화")
